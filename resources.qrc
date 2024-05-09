@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/plugins/s2toolkit" >
+        <file>logo.png</file>
+    </qresource>
+</RCC>

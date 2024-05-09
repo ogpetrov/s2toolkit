@@ -1,0 +1,53 @@
+language: cpp
+
+notifications:
+  email: false
+
+addons:
+  apt:
+    packages:
+      - libssl-dev
+      - python-dev
+      - python-pip
+      - python3-pip
+      - scons
+      - swig
+
+sudo: required
+
+matrix:
+  include:
+    - os: linux
+      compiler: gcc
+      dist: trusty
+      env:
+        py3: "true"
+    - os: osx
+      compiler: clang
+
+script:
+- export PATH=$PATH:~/Library/Python/2.7/bin/
+- git submodule update --init --recursive
+- pip install --user --upgrade pip
+- pip install --user numpy nose flake8 hacking
+- pip install --user .
+- flake8
+- nosetests-2.7 -vv
+- |
+  if [[ "${TRAVIS_OS_NAME}" = "linux" ]]; then
+    cd tests/s2-geometry && ./travis.sh && cd -
+
+    # use special python version that is used by s2-geometry under linux
+    sudo /usr/bin/pip install .
+    /usr/bin/python2.7 tests/compare_implementations.py -vv
+  fi
+# py3
+- |
+  if [[ "${py3}" == "true" ]]; then
+    pip3 install --user --upgrade pip
+    pip3 install --user numpy nose
+    pip3 install --user .
+
+    echo "Python 3 tests:"
+    nosetests-3.4 -vv
+  fi
