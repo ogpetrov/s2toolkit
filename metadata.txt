@@ -12,8 +12,8 @@ email=support@ibtgeo.ru
 
 about=This plugin adds tools that let create S2 Geometry in QGIS processing provider.
 
-tracker=http://bugs
-repository=http://repo
+tracker=https://github.com/ogpetrov/s2toolkit/issues
+repository=https://github.com/ogpetrov/s2toolkit
 # End of mandatory metadata
 
 # Recommended items:
@@ -25,7 +25,7 @@ hasProcessingProvider=yes
 # Tags are comma separated with spaces allowed
 tags=python
 
-homepage=http://homepage
+homepage=https://github.com/ogpetrov/s2toolkit
 category=Analysis
 icon=icon.png
 # experimental flag
