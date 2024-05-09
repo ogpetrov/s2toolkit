@@ -1,4 +1,5 @@
 # s2toolkit
+Authors: Mikhail Melnikov (idea, code), Oleg Petrov (code adaptation, plugin development)
 
 S2Toolkit QGIS Plugin adds tools that let create S2 Geometry in QGIS processing provider.
 * In the first version only "S2 From Extent" tool is available, that can create S2 geometry of any level from vector layer (using minimal bounding box) directly in QGIS.
