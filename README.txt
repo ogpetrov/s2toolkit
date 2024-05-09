@@ -1,3 +1,4 @@
+# edited by mgmelnikov
 Plugin Builder Results
 
 Your plugin S2Toolkit was created in:
