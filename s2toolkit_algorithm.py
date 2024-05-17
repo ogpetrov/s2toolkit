@@ -167,7 +167,6 @@ class S2ToolkitAlgorithm(QgsProcessingAlgorithm):
                 continue
             # Bounding boxes, calculate on the fly for efficiency
             bounds.combineExtentWith(f.geometry().boundingBox())
-            feedback.setProgress(int(current * total))
 
         # Transform projected coordinates to WGS84
         transform = QgsCoordinateTransform(source.sourceCrs(),
