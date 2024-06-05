@@ -32,8 +32,12 @@ __revision__ = '$Format:%H$'
 
 from qgis.PyQt.QtGui import QIcon
 from qgis.core import QgsProcessingProvider
-from .s2toolkit_algorithm import S2ToolkitAlgorithm
+from .s2toolkit_algorithm import (S2Toolkit_fromLayerExtent,
+                                  S2Toolkit_fromFeatureExtents,
+                                  S2Toolkit_fromGeometry)
 from . import resources
+import os
+pluginPath = os.path.dirname(__file__)
 
 class S2ToolkitProvider(QgsProcessingProvider):
 
@@ -54,9 +58,10 @@ class S2ToolkitProvider(QgsProcessingProvider):
         """
         Loads all algorithms belonging to this provider.
         """
-        self.addAlgorithm(S2ToolkitAlgorithm())
+        self.addAlgorithm(S2Toolkit_fromLayerExtent())
         # add additional algorithms here
-        # self.addAlgorithm(MyOtherAlgorithm())
+        self.addAlgorithm(S2Toolkit_fromGeometry())
+        self.addAlgorithm(S2Toolkit_fromFeatureExtents())
 
     def id(self):
         """
@@ -80,7 +85,7 @@ class S2ToolkitProvider(QgsProcessingProvider):
         Should return a QIcon which is used for your provider inside
         the Processing toolbox.
         """
-        return QIcon(':/plugins/s2toolkit/logo.png')
+        return QIcon(os.path.join(pluginPath, "logo.png"))
 
     def longName(self):
         """

@@ -53,39 +53,21 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterNumber)
 from .s2sphere import s2sphere
 from . import resources
+import json
+import os
+pluginPath = os.path.dirname(__file__)
 
-class S2ToolkitAlgorithm(QgsProcessingAlgorithm):
+class S2Toolkit_fromLayerExtent(QgsProcessingAlgorithm):
     """
-    This is an example algorithm that takes a vector layer and
-    creates a new identical one.
-
-    It is meant to be used as an example of how to create your own
-    algorithms and explain methods and variables used to do it. An
-    algorithm like this will be available in all elements, and there
-    is not need for additional work.
-
-    All Processing algorithms should extend the QgsProcessingAlgorithm
-    class.
+    TODO: Add docstring
     """
-
-    # Constants used to refer to parameters and outputs. They will be
-    # used when calling the algorithm from another algorithm, or when
-    # calling from the QGIS console.
 
     OUTPUT = 'OUTPUT'
     LVL = 'LVL'
-    # MIN_LVL = 'MIN_LVL'
-    # MAX_LVL = 'MAX_LVL'
     INPUT = 'INPUT'
 
     def initAlgorithm(self, config):
-        """
-        Here we define the inputs and output of the algorithm, along
-        with some other properties.
-        """
-
-        # We add the input vector features source. It can have any kind of
-        # geometry.
+        
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.INPUT,
@@ -103,27 +85,6 @@ class S2ToolkitAlgorithm(QgsProcessingAlgorithm):
             )
         )
         
-        # self.addParameter(
-        #     QgsProcessingParameterNumber(
-        #         self.MIN_LVL,
-        #         self.tr('Minimal S2 Geometry level'),
-        #         type=QgsProcessingParameterNumber.Type.Integer,
-        #         minValue = 1, defaultValue = 12
-        #     )
-        # )
-        
-        # self.addParameter(
-        #     QgsProcessingParameterNumber(
-        #         self.MAX_LVL,
-        #         self.tr('Maximal S2 Geometry level'),
-        #         type=QgsProcessingParameterNumber.Type.Integer,
-        #         minValue = 1, defaultValue = 12
-        #     )
-        # )
-        
-        # We add a feature sink in which to store our processed features (this
-        # usually takes the form of a newly created vector layer when the
-        # algorithm is run in QGIS).
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
@@ -133,25 +94,21 @@ class S2ToolkitAlgorithm(QgsProcessingAlgorithm):
         
 
     def processAlgorithm(self, parameters, context, feedback):
-        """
-        Here is where the processing itself takes place.
-        """
-
-        # Retrieve the feature source and sink. The 'dest_id' variable is used
-        # to uniquely identify the feature sink, and must be included in the
-        # dictionary returned by the processAlgorithm function.
+        
         source = self.parameterAsSource(parameters, self.INPUT, context)
         if source is None:
             raise QgsProcessingException(self.invalidSourceError(parameters,
                                                                  self.INPUT))
         fields = QgsFields()
         fields.append(QgsField('id', QVariant.Int, '', 20))
-        fields.append(QgsField('cellid', QVariant.String, 'string', 20))
+        fields.append(QgsField('level', QVariant.Int, '', 3))
+        fields.append(QgsField('cellid_int', QVariant.String, 'string', 20))
+        fields.append(QgsField('cellid_hex', QVariant.String, 'string', 19))
         
         (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT,
-                                               context, fields,
-                                               QgsWkbTypes.Type.Polygon,
-                                               QgsCoordinateReferenceSystem("EPSG:4326"))
+                                    context, fields,
+                                    QgsWkbTypes.Type.Polygon,
+                                    QgsCoordinateReferenceSystem("EPSG:4326"))
         if sink is None:
             raise QgsProcessingException(self.invalidSinkError(parameters,
                                                                self.OUTPUT))
@@ -207,58 +164,29 @@ class S2ToolkitAlgorithm(QgsProcessingAlgorithm):
                    f'{vs[2][0]} {vs[2][1]}, {vs[3][0]} {vs[3][1]}, '
                    f'{vs[0][0]} {vs[0][1]}))')
             if not feedback.isCanceled():
-                feature = QgsFeature()
-                feature.setGeometry(QgsGeometry.fromWkt(wkt))
-                feature.setAttributes([current, cell.id()])
-                sink.addFeature(feature, QgsFeatureSink.Flag.FastInsert)
+                s2feature = QgsFeature()
+                s2feature.setGeometry(QgsGeometry.fromWkt(wkt))
+                s2feature.setAttributes([current, min_level,
+                                       cell.id(), hex(cell.id())])
+                sink.addFeature(s2feature, QgsFeatureSink.Flag.FastInsert)
                 # Update the progress bar
                 feedback.setProgress(int(current * total))
 
-        # Return the results of the algorithm. In this case our only result is
-        # the feature sink which contains the processed features, but some
-        # algorithms may return multiple feature sinks, calculated numeric
-        # statistics, etc. These should all be included in the returned
-        # dictionary, with keys matching the feature corresponding parameter
-        # or output names.
         return {self.OUTPUT: dest_id}
 
     def name(self):
-        """
-        Returns the algorithm name, used for identifying the algorithm. This
-        string should be fixed for the algorithm, and must not be localised.
-        The name should be unique within each provider. Names should contain
-        lowercase alphanumeric characters only and no spaces or other
-        formatting characters.
-        """
-        return 'S2 from Extent'
+        return 'S2 from Layer Extent'
 
     def displayName(self):
-        """
-        Returns the translated algorithm name, which should be used for any
-        user-visible display of the algorithm name.
-        """
         return self.tr(self.name())
 
     def group(self):
-        """
-        Returns the name of the group this algorithm belongs to. This string
-        should be localised.
-        """
         return self.tr(self.groupId())
 
     def groupId(self):
-        """
-        Returns the unique ID of the group this algorithm belongs to. This
-        string should be fixed for the algorithm, and must not be localised.
-        The group id should be unique within each provider. Group id should
-        contain lowercase alphanumeric characters only and no spaces or other
-        formatting characters.
-        """
         return ''
 
     def shortHelpString(self):
-        """Returns a localised short help string for the algorithm.
-        """
         help_str = """
         This tool generates an S2 geometry polygon vector layer from the \
         bounding box extent of a vector layer with any type of geometry \
@@ -280,11 +208,314 @@ class S2ToolkitAlgorithm(QgsProcessingAlgorithm):
         return QCoreApplication.translate('Processing', string)
 
     def icon(self):
-        """
-        Should return a QIcon which is used for your provider inside
-        the Processing toolbox.
-        """
-        return QIcon(':/plugins/s2toolkit/logo.png')
+        return QIcon(os.path.join(pluginPath, "logo.png"))
     
     def createInstance(self):
-        return S2ToolkitAlgorithm()
+        return S2Toolkit_fromLayerExtent()
+
+class S2Toolkit_fromFeatureExtents(QgsProcessingAlgorithm):
+    """
+    TODO: Add docstring
+    """
+
+    OUTPUT = 'OUTPUT'
+    LVL = 'LVL'
+    INPUT = 'INPUT'
+
+    def initAlgorithm(self, config):
+        
+        self.addParameter(
+            QgsProcessingParameterFeatureSource(
+                self.INPUT,
+                self.tr('Input layer'),
+                [QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterNumber(
+                self.LVL,
+                self.tr('S2 Geometry level'),
+                type=QgsProcessingParameterNumber.Type.Integer,
+                minValue = 1, defaultValue = 12
+            )
+        )
+        
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.OUTPUT,
+                self.tr('Output layer')
+            )
+        )
+        
+
+    def processAlgorithm(self, parameters, context, feedback):
+        source = self.parameterAsSource(parameters, self.INPUT, context)
+        if source is None:
+            raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
+
+        fields = QgsFields()
+        fields.append(QgsField('id', QVariant.Int, '', 20))
+        fields.append(QgsField('level', QVariant.Int, '', 3))
+        fields.append(QgsField('cellid_int', QVariant.String, 'string', 20))
+        fields.append(QgsField('cellid_hex', QVariant.String, 'string', 19))
+
+        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT,
+                                               context, fields,
+                                               QgsWkbTypes.Polygon,
+                                               QgsCoordinateReferenceSystem("EPSG:4326"))
+        if sink is None:
+            raise QgsProcessingException(self.invalidSinkError(parameters, self.OUTPUT))
+
+        min_level = self.parameterAsInt(parameters, self.LVL, context)
+        max_level = self.parameterAsInt(parameters, self.LVL, context)
+
+        total = 100.0 / source.featureCount() if source.featureCount() else 0
+
+        for current, feature in enumerate(source.getFeatures()):
+            if feedback.isCanceled():
+                break
+
+            if not feature.hasGeometry():
+                continue
+
+            # Get feature bounding box and transform it to WGS84
+            bbox = feature.geometry().boundingBox()
+            transform = QgsCoordinateTransform(source.sourceCrs(),
+                                               QgsCoordinateReferenceSystem("EPSG:4326"),
+                                               QgsProject.instance())
+            bbox_wgs84 = transform.transformBoundingBox(bbox)
+
+            xmin, xmax, ymax, ymin = (bbox_wgs84.xMaximum(),
+                                      bbox_wgs84.xMinimum(),
+                                      bbox_wgs84.yMaximum(),
+                                      bbox_wgs84.yMinimum())
+
+            region_rect = s2sphere.LatLngRect.from_point_pair(
+                s2sphere.LatLng.from_degrees(ymin, xmin),
+                s2sphere.LatLng.from_degrees(ymax, xmax))
+
+            coverer = s2sphere.RegionCoverer()
+            coverer.min_level = min_level
+            coverer.max_level = max_level
+            covering = coverer.get_covering(region_rect)
+
+            for cell in covering:
+                cell_obj = s2sphere.Cell(s2sphere.CellId(cell.id()))
+                vs = []
+                for i in range(4):
+                    vertex = cell_obj.get_vertex(i)
+                    lat_lng = s2sphere.LatLng.from_point(vertex)
+                    vs.append((float(lat_lng.lng().degrees),
+                               float(lat_lng.lat().degrees)))
+                wkt = (f'POLYGON (({vs[0][0]} {vs[0][1]}, {vs[1][0]} {vs[1][1]}, '
+                       f'{vs[2][0]} {vs[2][1]}, {vs[3][0]} {vs[3][1]}, '
+                       f'{vs[0][0]} {vs[0][1]}))')
+
+                s2feature = QgsFeature()
+                s2feature.setGeometry(QgsGeometry.fromWkt(wkt))
+                s2feature.setAttributes([current, min_level,
+                                         cell.id(), hex(cell.id())])
+                sink.addFeature(s2feature, QgsFeatureSink.FastInsert)
+
+            feedback.setProgress(int(current * total))
+
+        return {self.OUTPUT: dest_id}
+
+    def name(self):
+        return 'S2 from Feature Extents'
+
+    def displayName(self):
+        return self.tr(self.name())
+
+    def group(self):
+        return self.tr(self.groupId())
+
+    def groupId(self):
+        return ''
+
+    def shortHelpString(self):
+        help_str = """
+        This tool generates an S2 geometry polygon vector layer from the \
+        bounding boxes of a vector layer features with any type of geometry \
+        (points, lines, polygons). This tool specifically calculates bounding \
+        box of every feature in input vector layer.
+
+        <b>Usage</b>
+        <u>Input Layer</u>: Any vector layer.
+        <u>S2 Geometry Level</u>: Desired S2 geometry level. \
+        CAUTION: Levels higher than 17 may require extended processing time!
+        <u>Output Layer</u>: Polygon layer projected in WGS84 (EPSG:4326)
+        """
+
+        return self.tr(help_str)
+
+    def tr(self, string):
+        return QCoreApplication.translate('Processing', string)
+
+    def icon(self):
+        return QIcon(os.path.join(pluginPath, "logo.png"))
+    
+    def createInstance(self):
+        return S2Toolkit_fromFeatureExtents()
+
+class S2Toolkit_fromGeometry(QgsProcessingAlgorithm):
+    """
+    TODO: Add docstring
+    """
+
+    OUTPUT = 'OUTPUT'
+    LVL = 'LVL'
+    INPUT = 'INPUT'
+
+    def initAlgorithm(self, config):
+        
+        self.addParameter(
+            QgsProcessingParameterFeatureSource(
+                self.INPUT,
+                self.tr('Input layer'),
+                [QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterNumber(
+                self.LVL,
+                self.tr('S2 Geometry level'),
+                type=QgsProcessingParameterNumber.Type.Integer,
+                minValue = 1, defaultValue = 12
+            )
+        )
+        
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.OUTPUT,
+                self.tr('Output layer')
+            )
+        )
+        
+
+    def processAlgorithm(self, parameters, context, feedback):
+        source = self.parameterAsSource(parameters, self.INPUT, context)
+        if source is None:
+            raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
+
+        fields = QgsFields()
+        fields.append(QgsField('id', QVariant.Int, '', 20))
+        fields.append(QgsField('level', QVariant.Int, '', 3))
+        fields.append(QgsField('cellid_int', QVariant.String, 'string', 20))
+        fields.append(QgsField('cellid_hex', QVariant.String, 'string', 19))
+
+        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT,
+                                               context, fields,
+                                               QgsWkbTypes.Polygon,
+                                               QgsCoordinateReferenceSystem("EPSG:4326"))
+        if sink is None:
+            raise QgsProcessingException(self.invalidSinkError(parameters, self.OUTPUT))
+
+        features = source.getFeatures(QgsFeatureRequest().setSubsetOfAttributes([]))
+        bounds = QgsRectangle()
+        for current, f in enumerate(features):
+            if feedback.isCanceled():
+                break
+            if not f.hasGeometry():
+                continue
+            bounds.combineExtentWith(f.geometry().boundingBox())
+
+        transform = QgsCoordinateTransform(source.sourceCrs(),
+                                           QgsCoordinateReferenceSystem("EPSG:4326"),
+                                           QgsProject.instance())
+        bounds_wgs84 = transform.transformBoundingBox(bounds)
+
+        xmin, xmax, ymax, ymin = (bounds_wgs84.xMaximum(),
+                                  bounds_wgs84.xMinimum(),
+                                  bounds_wgs84.yMaximum(),
+                                  bounds_wgs84.yMinimum())
+
+        region_rect = s2sphere.LatLngRect.from_point_pair(
+            s2sphere.LatLng.from_degrees(ymin, xmin),
+            s2sphere.LatLng.from_degrees(ymax, xmax))
+
+        coverer = s2sphere.RegionCoverer()
+        min_level = self.parameterAsInt(parameters, self.LVL, context)
+        max_level = self.parameterAsInt(parameters, self.LVL, context)
+
+        coverer.min_level = min_level
+        coverer.max_level = max_level
+        covering = coverer.get_covering(region_rect)
+
+        total = 100.0 / len(covering) if covering else 0
+
+        input_features = list(source.getFeatures())
+
+        for current, cell in enumerate(covering):
+            if feedback.isCanceled():
+                break
+
+            cell_obj = s2sphere.Cell(s2sphere.CellId(cell.id()))
+            vs = []
+            for i in range(4):
+                vertex = cell_obj.get_vertex(i)
+                lat_lng = s2sphere.LatLng.from_point(vertex)
+                vs.append((float(lat_lng.lng().degrees),
+                           float(lat_lng.lat().degrees)))
+            wkt = (f'POLYGON (({vs[0][0]} {vs[0][1]}, {vs[1][0]} {vs[1][1]}, '
+                   f'{vs[2][0]} {vs[2][1]}, {vs[3][0]} {vs[3][1]}, '
+                   f'{vs[0][0]} {vs[0][1]}))')
+            
+            cell_geometry = QgsGeometry.fromWkt(wkt)
+            intersects = False
+            
+            for f in input_features:
+                geom = f.geometry()
+                geom.transform(transform)
+                if cell_geometry.intersects(geom):
+                    intersects = True
+                    break
+
+            if intersects:
+                s2feature = QgsFeature()
+                s2feature.setGeometry(cell_geometry)
+                s2feature.setAttributes([current, min_level,
+                                         cell.id(), hex(cell.id())])
+                sink.addFeature(s2feature, QgsFeatureSink.FastInsert)
+                feedback.setProgress(int(current * total))
+
+
+        return {self.OUTPUT: dest_id}
+
+    def name(self):
+        return 'S2 from Geometry'
+
+    def displayName(self):
+        return self.tr(self.name())
+
+    def group(self):
+        return self.tr(self.groupId())
+
+    def groupId(self):
+        return ''
+
+    def shortHelpString(self):
+        help_str = """
+        This tool generates an S2 geometry polygon vector layer from the \
+        features of a vector layer with any type of geometry (points, lines, \
+        polygons) that intersects S2 Cells.
+
+        <b>Usage</b>
+        <u>Input Layer</u>: Any vector layer.
+        <u>S2 Geometry Level</u>: Desired S2 geometry level. \
+        CAUTION: Levels higher than 17 may require extended processing time!
+        <u>Output Layer</u>: Polygon layer projected in WGS84 (EPSG:4326)
+        """
+
+        return self.tr(help_str)
+
+    def tr(self, string):
+        return QCoreApplication.translate('Processing', string)
+
+    def icon(self):
+        return QIcon(os.path.join(pluginPath, "logo.png"))
+    
+    def createInstance(self):
+        return S2Toolkit_fromGeometry()

@@ -6,7 +6,7 @@
 name=S2 Toolkit
 qgisMinimumVersion=3.0
 description=Tools for the S2 Geometry.
-version=0.1
+version=0.3
 author=Mikhail Melnikov, Oleg Petrov
 email=support@ibtgeo.ru
 
